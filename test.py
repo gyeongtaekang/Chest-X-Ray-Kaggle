@@ -2,43 +2,54 @@ import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 from torchvision import models, transforms
 from torchvision.datasets import ImageFolder
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+import numpy as np
 
-# 데이터셋 경로 설정
+# 데이터 경로 설정
 dataset_path = r"C:\Users\AERO\Downloads\archive (1)\chest_xray"
 
-# 이미지 전처리 및 증강 설정
-transform = transforms.Compose([
-    transforms.Resize((224, 224)),  # 이미지 크기 조정
-    transforms.RandomRotation(20),  # 20도 회전
-    transforms.RandomHorizontalFlip(),  # 좌우 반전
-    transforms.RandomResizedCrop(224),  # 무작위 크기로 자르고 크기 조정
-    transforms.ToTensor(),  # 텐서 형식으로 변환
-    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])  # 정규화
+# 데이터 증강 및 전처리 설정
+train_transform = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.RandomRotation(20),
+    transforms.RandomHorizontalFlip(),
+    transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
+    transforms.ToTensor(),
+    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
-# 학습 데이터 로더
-train_dataset = ImageFolder(root=os.path.join(dataset_path, 'train'), transform=transform)
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-
-# 검증 데이터 (증강 없이)
-val_transform = transforms.Compose([
+val_test_transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
-val_dataset = ImageFolder(root=os.path.join(dataset_path, 'val'), transform=val_transform)
+# 학습 및 검증 데이터 로더 설정
+train_dataset = ImageFolder(root=os.path.join(dataset_path, 'train'), transform=train_transform)
+val_dataset = ImageFolder(root=os.path.join(dataset_path, 'val'), transform=val_test_transform)
+test_dataset = ImageFolder(root=os.path.join(dataset_path, 'test'), transform=val_test_transform)
+
+# 클래스 비율에 따른 가중치 계산
+class_counts = np.bincount(train_dataset.targets)
+weights = 1. / class_counts
+sample_weights = weights[train_dataset.targets]
+sampler = WeightedRandomSampler(weights=sample_weights, num_samples=len(sample_weights), replacement=True)
+
+# 데이터 로더 설정
+train_loader = DataLoader(train_dataset, batch_size=32, sampler=sampler)
 val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 
-# 모델 정의 (ResNet18 사용 예시)
+# 모델 정의 및 가중치 불러오기
 model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
-model.fc = nn.Linear(model.fc.in_features, 1)  # 이진 분류를 위한 출력 레이어 수정
+model.fc = nn.Linear(model.fc.in_features, 1)
 
-# 손실 함수와 최적화기 정의
-criterion = nn.BCEWithLogitsLoss()  # 이진 분류용 손실 함수
+# 클래스 불균형 보정
+pos_weight = torch.tensor([class_counts[0] / class_counts[1]], dtype=torch.float)
+criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)  # 가중치를 적용한 손실 함수
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 
@@ -87,11 +98,5 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
 train_model(model, train_loader, val_loader, criterion, optimizer)
 
 # 모델 저장
-torch.save(model.state_dict(), "pneumonia_detection_model.pth")
-
-# 모델 불러오기
-model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
-model.fc = nn.Linear(model.fc.in_features, 1)
-model.load_state_dict(torch.load("pneumonia_detection_model.pth", weights_only=True))
-
-print("모델이 성공적으로 저장되고 불러와졌습니다.")
+torch.save(model.state_dict(), "pneumonia_detection_model_augmented.pth")
+print("모델이 저장되었습니다.")
