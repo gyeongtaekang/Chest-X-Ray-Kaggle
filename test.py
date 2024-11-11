@@ -14,8 +14,8 @@ dataset_path = r"C:\Users\AERO\Downloads\archive (1)\chest_xray"
 # 데이터 증강 및 전처리 설정
 train_transform = transforms.Compose([
     transforms.Resize((224, 224)),
-    transforms.RandomRotation(10),
-    transforms.ColorJitter(brightness=0.4, contrast=0.4),  # 데이터 증강 범위 확대
+    transforms.RandomRotation(15),
+    transforms.ColorJitter(brightness=0.5, contrast=0.5),  # 밝기와 대비 조정
     transforms.RandomHorizontalFlip(),
     transforms.ToTensor(),
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
@@ -50,7 +50,7 @@ class PneumoniaModel(nn.Module):
         super(PneumoniaModel, self).__init__()
         self.model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
         self.model.fc = nn.Sequential(
-            nn.Dropout(0.4),  # 드롭아웃 추가
+            nn.Dropout(0.5),  # 드롭아웃 추가
             nn.Linear(self.model.fc.in_features, 1)
         )
 
@@ -60,8 +60,8 @@ class PneumoniaModel(nn.Module):
 
 model = PneumoniaModel()
 
-# 클래스 불균형 보정 (보수적 판단 위해 pos_weight를 줄임)
-pos_weight = torch.tensor([0.5], dtype=torch.float)  # 가중치를 줄여 보수적 판단을 유도
+# 클래스 불균형 보정 (정밀도를 위한 보수적 가중치 설정)
+pos_weight = torch.tensor([class_counts[0] / class_counts[1] * 3], dtype=torch.float)  # 가중치 설정
 criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
 optimizer = optim.Adam(model.parameters(), lr=0.0005)
 
@@ -105,8 +105,8 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
                 loss = criterion(outputs.view(-1), labels)
                 val_loss += loss.item() * inputs.size(0)
 
-                # 임계값을 0.85로 조정
-                preds = (torch.sigmoid(outputs) >= 0.85).float()
+                # 임계값을 0.9로 설정
+                preds = (torch.sigmoid(outputs) >= 0.9).float()
                 correct += (preds.view(-1) == labels).sum().item()
                 total += labels.size(0)
 
@@ -118,7 +118,7 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             patience_counter = 0
-            torch.save(model.state_dict(), "pneumonia_detection_model_conservative.pth")
+            torch.save(model.state_dict(), "pneumonia_detection_model_conservative.pth")  # 최적 모델 저장
             print("모델이 저장되었습니다.")
         else:
             patience_counter += 1
@@ -141,7 +141,7 @@ with torch.no_grad():
     for inputs, labels in test_loader:
         inputs, labels = inputs.to('cpu'), labels.to('cpu')
         outputs = model(inputs)
-        preds = (torch.sigmoid(outputs) >= 0.85).float()  # 테스트 단계에서도 임계값을 0.85로 조정
+        preds = (torch.sigmoid(outputs) >= 0.9).float()  # 테스트 시 임계값 0.9로 설정
 
         all_labels.extend(labels.numpy())
         all_preds.extend(preds.numpy().squeeze())
@@ -160,4 +160,3 @@ print(f"Test Recall: {recall:.4f}")
 print(f"Test F1 Score: {f1:.4f}")
 print("Confusion Matrix:")
 print(conf_matrix)
- 
