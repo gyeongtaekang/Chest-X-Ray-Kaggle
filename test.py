@@ -14,9 +14,9 @@ dataset_path = r"C:\Users\AERO\Downloads\archive (1)\chest_xray"
 # 데이터 증강 및 전처리 설정
 train_transform = transforms.Compose([
     transforms.Resize((224, 224)),
-    transforms.RandomRotation(15),
-    transforms.ColorJitter(brightness=0.5, contrast=0.5),
-    transforms.RandomAffine(degrees=10, translate=(0.1, 0.1)),  # 새로운 증강 추가
+    transforms.RandomRotation(20),
+    transforms.ColorJitter(brightness=0.6, contrast=0.6),
+    transforms.RandomAffine(degrees=15, translate=(0.1, 0.1)),
     transforms.RandomHorizontalFlip(),
     transforms.ToTensor(),
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
@@ -45,11 +45,11 @@ val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
 test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
 
 
-# 모델 정의 및 드롭아웃 추가
+# 모델 정의 (ResNet50 사용)
 class PneumoniaModel(nn.Module):
     def __init__(self):
         super(PneumoniaModel, self).__init__()
-        self.model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+        self.model = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
         self.model.fc = nn.Sequential(
             nn.Dropout(0.5),
             nn.Linear(self.model.fc.in_features, 1)
@@ -64,7 +64,7 @@ model = PneumoniaModel()
 
 # Focal Loss 정의
 class FocalLoss(nn.Module):
-    def __init__(self, alpha=1, gamma=1.5):  # gamma 값 1.5로 설정
+    def __init__(self, alpha=1, gamma=1.5):  # 감마값을 낮춰서 조정
         super(FocalLoss, self).__init__()
         self.alpha = alpha
         self.gamma = gamma
@@ -148,18 +148,26 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler
 # 학습 시작
 train_model(model, train_loader, val_loader, criterion, optimizer, scheduler)
 
-# 테스트 평가
+# 테스트 평가 (Test-Time Augmentation 포함)
 model.load_state_dict(torch.load("pneumonia_detection_model_optimized.pth", map_location=torch.device('cpu')))
 model.eval()
 
 all_labels = []
 all_preds = []
 
+# TTA 적용
 with torch.no_grad():
     for inputs, labels in test_loader:
         inputs, labels = inputs.to('cpu'), labels.to('cpu')
-        outputs = model(inputs)
-        preds = (torch.sigmoid(outputs) >= 0.8).float()  # 테스트 시 임계값 0.8로 설정
+        # TTA 적용: 이미지 회전 후 평균 결과
+        tta_outputs = []
+        for angle in [-10, 0, 10]:  # 회전 각도 적용
+            rotated_inputs = transforms.functional.rotate(inputs, angle)
+            outputs = model(rotated_inputs)
+            tta_outputs.append(torch.sigmoid(outputs))
+        # 평균 예측 값 계산
+        avg_output = torch.stack(tta_outputs).mean(dim=0)
+        preds = (avg_output >= 0.8).float()
 
         all_labels.extend(labels.numpy())
         all_preds.extend(preds.numpy().squeeze())
