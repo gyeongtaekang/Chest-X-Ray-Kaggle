@@ -8,6 +8,13 @@ from torchvision.datasets import ImageFolder
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 import numpy as np
 
+# GPU 강제 사용 설정
+if not torch.cuda.is_available():
+    raise RuntimeError("CUDA가 사용 불가능합니다. GPU를 활성화하거나 적절한 환경을 설정하세요.")
+torch.cuda.set_device(0)  # GPU 0번 강제 사용
+device = torch.device("cuda")
+# print(f"Using device: {device}")
+
 # 데이터 경로 설정
 dataset_path = r"C:\Users\AERO\Downloads\archive (1)\chest_xray"
 
@@ -40,10 +47,9 @@ sample_weights = weights[train_dataset.targets]
 sampler = WeightedRandomSampler(weights=sample_weights, num_samples=len(sample_weights), replacement=True)
 
 # 데이터 로더 설정
-train_loader = DataLoader(train_dataset, batch_size=32, sampler=sampler)
-val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
-test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
-
+train_loader = DataLoader(train_dataset, batch_size=32, sampler=sampler, num_workers=4, pin_memory=True, persistent_workers=True)
+val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, num_workers=4, pin_memory=True, persistent_workers=True)
+test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False, num_workers=4, pin_memory=True, persistent_workers=True)
 
 # 모델 정의 (ResNet50 사용)
 class PneumoniaModel(nn.Module):
@@ -59,12 +65,11 @@ class PneumoniaModel(nn.Module):
         return self.model(x)
 
 
-model = PneumoniaModel()
-
+model = PneumoniaModel().to(device)
 
 # Focal Loss 정의
 class FocalLoss(nn.Module):
-    def __init__(self, alpha=1, gamma=1.5):  # 감마값을 낮춰서 조정
+    def __init__(self, alpha=1, gamma=1.5):
         super(FocalLoss, self).__init__()
         self.alpha = alpha
         self.gamma = gamma
@@ -96,7 +101,8 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler
         running_loss = 0.0
 
         for inputs, labels in train_loader:
-            inputs, labels = inputs.to('cpu'), labels.float().to('cpu')
+            # GPU로 데이터 전송
+            inputs, labels = inputs.to(device, non_blocking=True), labels.float().to(device, non_blocking=True)
             optimizer.zero_grad()
 
             outputs = model(inputs)
@@ -106,38 +112,38 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler
 
             running_loss += loss.item() * inputs.size(0)
 
-        # 학습률 스케줄 업데이트
         scheduler.step()
         epoch_loss = running_loss / len(train_loader.dataset)
         print(f'Epoch {epoch + 1}/{num_epochs}, Loss: {epoch_loss:.4f}, LR: {scheduler.get_last_lr()[0]}')
 
-        # 검증 정확도 계산
+        # 검증
         model.eval()
         val_loss = 0.0
         correct = 0
         total = 0
         with torch.no_grad():
             for inputs, labels in val_loader:
-                inputs, labels = inputs.to('cpu'), labels.float().to('cpu')
+                inputs, labels = inputs.to(device, non_blocking=True), labels.float().to(device, non_blocking=True)
                 outputs = model(inputs)
                 loss = criterion(outputs.view(-1), labels)
                 val_loss += loss.item() * inputs.size(0)
 
-                # 임계값을 0.8로 설정
+                # 임계값 적용
                 preds = (torch.sigmoid(outputs) >= 0.8).float()
                 correct += (preds.view(-1) == labels).sum().item()
                 total += labels.size(0)
 
-        val_loss = val_loss / len(val_loader.dataset)
+        val_loss /= len(val_loader.dataset)
         accuracy = correct / total
         print(f'Validation Loss: {val_loss:.4f}, Accuracy: {accuracy:.4f}')
 
         # 조기 종료 조건
+        global best_val_loss, patience_counter
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             patience_counter = 0
             torch.save(model.state_dict(), "pneumonia_detection_model_optimized.pth")
-            print("모델이 저장되었습니다.")
+            print("모델 저장됨")
         else:
             patience_counter += 1
             if patience_counter >= early_stopping_patience:
@@ -145,44 +151,45 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler
                 break
 
 
-# 학습 시작
-train_model(model, train_loader, val_loader, criterion, optimizer, scheduler)
+if __name__ == '__main__':
+    # 학습 시작
+    train_model(model, train_loader, val_loader, criterion, optimizer, scheduler)
 
-# 테스트 평가 (Test-Time Augmentation 포함)
-model.load_state_dict(torch.load("pneumonia_detection_model_optimized.pth", map_location=torch.device('cpu')))
-model.eval()
+    # 테스트 평가 (Test-Time Augmentation 포함)
+    model.load_state_dict(torch.load("pneumonia_detection_model_optimized.pth"))
+    model.eval()
 
-all_labels = []
-all_preds = []
+    all_labels = []
+    all_preds = []
 
-# TTA 적용
-with torch.no_grad():
-    for inputs, labels in test_loader:
-        inputs, labels = inputs.to('cpu'), labels.to('cpu')
-        # TTA 적용: 이미지 회전 후 평균 결과
-        tta_outputs = []
-        for angle in [-10, 0, 10]:  # 회전 각도 적용
-            rotated_inputs = transforms.functional.rotate(inputs, angle)
-            outputs = model(rotated_inputs)
-            tta_outputs.append(torch.sigmoid(outputs))
-        # 평균 예측 값 계산
-        avg_output = torch.stack(tta_outputs).mean(dim=0)
-        preds = (avg_output >= 0.8).float()
+    # TTA 적용
+    with torch.no_grad():
+        for inputs, labels in test_loader:
+            inputs, labels = inputs.to(device, non_blocking=True), labels.to(device, non_blocking=True)
+            # TTA 적용: 이미지 회전 후 평균 결과
+            tta_outputs = []
+            for angle in [-10, 0, 10]:
+                rotated_inputs = transforms.functional.rotate(inputs, angle)
+                outputs = model(rotated_inputs)
+                tta_outputs.append(torch.sigmoid(outputs))
+            # 평균 예측 값 계산
+            avg_output = torch.stack(tta_outputs).mean(dim=0)
+            preds = (avg_output >= 0.8).float()
 
-        all_labels.extend(labels.numpy())
-        all_preds.extend(preds.numpy().squeeze())
+            all_labels.extend(labels.cpu().numpy())
+            all_preds.extend(preds.cpu().numpy().squeeze())
 
-# 평가 지표 계산
-accuracy = accuracy_score(all_labels, all_preds)
-precision = precision_score(all_labels, all_preds)
-recall = recall_score(all_labels, all_preds)
-f1 = f1_score(all_labels, all_preds)
-conf_matrix = confusion_matrix(all_labels, all_preds)
+    # 평가 지표 계산
+    accuracy = accuracy_score(all_labels, all_preds)
+    precision = precision_score(all_labels, all_preds)
+    recall = recall_score(all_labels, all_preds)
+    f1 = f1_score(all_labels, all_preds)
+    conf_matrix = confusion_matrix(all_labels, all_preds)
 
-# 결과 출력
-print(f"Test Accuracy: {accuracy:.4f}")
-print(f"Test Precision: {precision:.4f}")
-print(f"Test Recall: {recall:.4f}")
-print(f"Test F1 Score: {f1:.4f}")
-print("Confusion Matrix:")
-print(conf_matrix)
+    # 결과 출력
+    print(f"Test Accuracy: {accuracy:.4f}")
+    print(f"Test Precision: {precision:.4f}")
+    print(f"Test Recall: {recall:.4f}")
+    print(f"Test F1 Score: {f1:.4f}")
+    print("Confusion Matrix:")
+    print(conf_matrix)
