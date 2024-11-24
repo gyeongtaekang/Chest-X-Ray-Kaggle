@@ -114,7 +114,7 @@ criterion = FocalLoss(alpha=2, gamma=1.5, pos_weight=class_counts[0] / class_cou
 # 하이퍼파라미터 설정
 num_epochs = 30  # 총 에폭 수
 batch_size = 32  # 배치 크기
-learning_rate = 0.0001  # 학습���
+learning_rate = 0.0001  # 학습률
 weight_decay = 1e-4  # 가중치 감쇠
 early_stopping_patience = 7  # 조기 종료 인내
 
@@ -122,46 +122,10 @@ early_stopping_patience = 7  # 조기 종료 인내
 optimizer = optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
 scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=1e-6)
 
-# CutMix 및 MixUp 정의
-def rand_bbox(size, lam):
-    W = size[2]
-    H = size[3]
-    cut_rat = np.sqrt(1. - lam)
-    cut_w = np.int32(W * cut_rat)
-    cut_h = np.int32(H * cut_rat)
-
-    # 랜덤 좌표 생성
-    cx = np.random.randint(W)
-    cy = np.random.randint(H)
-
-    bbx1 = np.clip(cx - cut_w // 2, 0, W)
-    bby1 = np.clip(cy - cut_h // 2, 0, H)
-    bbx2 = np.clip(cx + cut_w // 2, 0, W)
-    bby2 = np.clip(cy + cut_h // 2, 0, H)
-
-    return bbx1, bby1, bbx2, bby2
-
-def cutmix(data, target):
-    lam = np.random.beta(1.0, 1.0)
-    rand_index = torch.randperm(data.size()[0]).to(device)
-    
-    target_a = target
-    target_b = target[rand_index]
-    
-    bbx1, bby1, bbx2, bby2 = rand_bbox(data.size(), lam)
-    data[:, :, bbx1:bbx2, bby1:bby2] = data[rand_index, :, bbx1:bbx2, bby1:bby2]
-    
-    # adjust lambda to exactly match pixel ratio
-    lam = 1 - ((bbx2 - bbx1) * (bby2 - bby1) / (data.size()[-1] * data.size()[-2]))
-    
-    # compute target
-    mixed_target = target_a * lam + target_b * (1. - lam)
-    
-    return data, mixed_target
-
 # 학습 함수 정의
-def train_model(model, train_loader, val_loader, test_loader, criterion, optimizer, scheduler):
+def train_model(model, train_loader, val_loader, criterion, optimizer, scheduler, early_stopping_patience):
     best_val_loss = float('inf')
+    patience_counter = early_stopping_patience
     
     for epoch in range(num_epochs):
         # 학습 단계
@@ -222,6 +186,18 @@ def train_model(model, train_loader, val_loader, test_loader, criterion, optimiz
         # 학습률 조정
         scheduler.step()
 
+        # 조기 종료 확인
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            torch.save(model.state_dict(), 'best_model.pth')
+            print('모델 저장됨')
+            patience_counter = early_stopping_patience  # 인내 초기화
+        else:
+            patience_counter -= 1
+            if patience_counter == 0:
+                print('조기 종료 발동')
+                break
+
 # 테스트 함수 정의
 def test_model(model, test_loader):
     model.eval()
@@ -242,6 +218,7 @@ def test_model(model, test_loader):
     test_f1 = f1_score(all_test_labels, all_test_preds)
     test_conf_matrix = confusion_matrix(all_test_labels, all_test_preds)
 
+    # 결과 출력
     print(f"Test Accuracy: {test_accuracy:.4f}")
     print(f"Test Precision: {test_precision:.4f}")
     print(f"Test Recall: {test_recall:.4f}")
@@ -251,103 +228,9 @@ def test_model(model, test_loader):
 
 # 메인 실행
 if __name__ == '__main__':
-    train_model(model, train_loader, val_loader, test_loader, criterion, optimizer, scheduler)
+    train_model(model, train_loader, val_loader, criterion, optimizer, scheduler, early_stopping_patience)
+    
+    # 테스트 데이터에 대한 평가
+    model.load_state_dict(torch.load('best_model.pth'))
+    test_model(model, test_loader)
 
-
-
-
-
-
-
-# PS C:\Users\AERO\Downloads\Chest-X-Ray-Kaggle-main\Chest-X-Ray-Kaggle-main>  c:; cd 'c:\Users\AERO\Downloads\Chest-X-Ray-Kaggle-main\Chest-X-Ray-Kaggle-main'; & 'c:\Python312\python.exe' 'c:\Users\AERO\.vscode\extensions\ms-python.debugpy-2024.12.0-win32-x64\bundled\libs\debugpy\adapter/../..\debugpy\launcher' '54136' '--' 'c:\Users\AERO\Downloads\Chest-X-Ray-Kaggle-main\Chest-X-Ray-Kaggle-main\efficientnet.py'
-# Epoch 1/30: 100%|███████████████████████████████████████████| 163/163 [00:47<00:00,  3.43it/s, Loss=0.0663, Acc=84.05%]
-
-# Validation | Loss: 0.0500 | Acc: 100.00%
-# Epoch 2/30: 100%|███████████████████████████████████████████| 163/163 [00:51<00:00,  3.17it/s, Loss=0.0330, Acc=91.09%] 
-
-# Validation | Loss: 0.0925 | Acc: 93.75%
-# Epoch 3/30: 100%|███████████████████████████████████████████| 163/163 [00:50<00:00,  3.22it/s, Loss=0.0269, Acc=93.19%] 
-
-# Validation | Loss: 0.1690 | Acc: 81.25%
-# Epoch 4/30: 100%|███████████████████████████████████████████| 163/163 [00:49<00:00,  3.32it/s, Loss=0.0241, Acc=93.67%] 
-
-# Validation | Loss: 0.1401 | Acc: 87.50%
-# Epoch 5/30: 100%|███████████████████████████████████████████| 163/163 [00:52<00:00,  3.13it/s, Loss=0.0191, Acc=94.77%] 
-
-# Validation | Loss: 0.0707 | Acc: 93.75%
-# Epoch 6/30: 100%|███████████████████████████████████████████| 163/163 [00:48<00:00,  3.34it/s, Loss=0.0199, Acc=95.19%] 
-
-# Validation | Loss: 0.1540 | Acc: 87.50%
-# Epoch 7/30: 100%|███████████████████████████████████████████| 163/163 [00:54<00:00,  2.99it/s, Loss=0.0168, Acc=95.99%] 
-
-# Validation | Loss: 0.0864 | Acc: 93.75%
-# Epoch 8/30: 100%|███████████████████████████████████████████| 163/163 [00:53<00:00,  3.07it/s, Loss=0.0173, Acc=95.63%] 
-
-# Validation | Loss: 0.3034 | Acc: 75.00%
-# Epoch 9/30: 100%|███████████████████████████████████████████| 163/163 [00:50<00:00,  3.20it/s, Loss=0.0144, Acc=96.43%] 
-
-# Validation | Loss: 0.0573 | Acc: 100.00%
-# Epoch 10/30: 100%|██████████████████████████████████████████| 163/163 [00:52<00:00,  3.09it/s, Loss=0.0131, Acc=96.70%] 
-
-# Validation | Loss: 0.1211 | Acc: 93.75%
-# Epoch 11/30: 100%|██████████████████████████████████████████| 163/163 [00:52<00:00,  3.08it/s, Loss=0.0128, Acc=96.89%] 
-
-# Validation | Loss: 0.0900 | Acc: 93.75%
-# Epoch 12/30: 100%|██████████████████████████████████████████| 163/163 [00:52<00:00,  3.09it/s, Loss=0.0127, Acc=96.89%] 
-
-# Validation | Loss: 0.1462 | Acc: 93.75%
-# Epoch 13/30: 100%|██████████████████████████████████████████| 163/163 [00:53<00:00,  3.06it/s, Loss=0.0113, Acc=97.43%] 
-
-# Validation | Loss: 0.0803 | Acc: 100.00%
-# Epoch 14/30: 100%|██████████████████████████████████████████| 163/163 [00:50<00:00,  3.23it/s, Loss=0.0096, Acc=97.18%] 
-
-# Validation | Loss: 0.0808 | Acc: 93.75%
-# Epoch 15/30: 100%|██████████████████████████████████████████| 163/163 [00:50<00:00,  3.23it/s, Loss=0.0078, Acc=98.03%] 
-
-# Validation | Loss: 0.0722 | Acc: 93.75%
-# Epoch 16/30: 100%|██████████████████████████████████████████| 163/163 [00:52<00:00,  3.12it/s, Loss=0.0087, Acc=97.64%] 
-
-# Validation | Loss: 0.2066 | Acc: 87.50%
-# Epoch 17/30: 100%|██████████████████████████████████████████| 163/163 [00:50<00:00,  3.21it/s, Loss=0.0085, Acc=98.04%] 
-
-# Validation | Loss: 0.0869 | Acc: 93.75%
-# Epoch 18/30: 100%|██████████████████████████████████████████| 163/163 [00:56<00:00,  2.90it/s, Loss=0.0077, Acc=98.06%] 
-
-# Validation | Loss: 0.0745 | Acc: 93.75%
-# Epoch 19/30: 100%|██████████████████████████████████████████| 163/163 [00:55<00:00,  2.94it/s, Loss=0.0095, Acc=97.66%] 
-
-# Validation | Loss: 0.0975 | Acc: 93.75%
-# Epoch 20/30: 100%|██████████████████████████████████████████| 163/163 [00:50<00:00,  3.20it/s, Loss=0.0069, Acc=98.16%] 
-
-# Validation | Loss: 0.0929 | Acc: 93.75%
-# Epoch 21/30: 100%|██████████████████████████████████████████| 163/163 [00:51<00:00,  3.15it/s, Loss=0.0065, Acc=98.18%] 
-
-# Validation | Loss: 0.1433 | Acc: 93.75%
-# Epoch 22/30: 100%|██████████████████████████████████████████| 163/163 [00:50<00:00,  3.25it/s, Loss=0.0070, Acc=98.41%] 
-
-# Validation | Loss: 0.1915 | Acc: 93.75%
-# Epoch 23/30: 100%|██████████████████████████████████████████| 163/163 [00:49<00:00,  3.30it/s, Loss=0.0065, Acc=98.22%] 
-
-# Validation | Loss: 0.1695 | Acc: 93.75%
-# Epoch 24/30: 100%|██████████████████████████████████████████| 163/163 [00:55<00:00,  2.93it/s, Loss=0.0065, Acc=98.39%] 
-
-# Validation | Loss: 0.0986 | Acc: 93.75%
-# Epoch 25/30: 100%|██████████████████████████████████████████| 163/163 [00:47<00:00,  3.43it/s, Loss=0.0056, Acc=98.45%] 
-
-# Validation | Loss: 0.1118 | Acc: 93.75%
-# Epoch 26/30: 100%|██████████████████████████████████████████| 163/163 [00:49<00:00,  3.27it/s, Loss=0.0056, Acc=98.43%] 
-
-# Validation | Loss: 0.1401 | Acc: 93.75%
-# Epoch 27/30: 100%|██████████████████████████████████████████| 163/163 [00:50<00:00,  3.21it/s, Loss=0.0056, Acc=98.52%] 
-
-# Validation | Loss: 0.1163 | Acc: 93.75%
-# Epoch 28/30: 100%|██████████████████████████████████████████| 163/163 [00:48<00:00,  3.33it/s, Loss=0.0056, Acc=98.37%] 
-
-# Validation | Loss: 0.1187 | Acc: 93.75%
-# Epoch 29/30: 100%|██████████████████████████████████████████| 163/163 [00:50<00:00,  3.24it/s, Loss=0.0066, Acc=98.35%] 
-
-# Validation | Loss: 0.0997 | Acc: 93.75%
-# Epoch 30/30: 100%|██████████████████████████████████████████| 163/163 [00:48<00:00,  3.38it/s, Loss=0.0059, Acc=98.12%] 
-
-# Validation | Loss: 0.0978 | Acc: 93.75%
-# PS C:\Users\AERO\Downloads\Chest-X-Ray-Kaggle-main\Chest-X-Ray-Kaggle-main> 
