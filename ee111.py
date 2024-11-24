@@ -101,3 +101,27 @@ model.summary()
 # 1. 코드 재사용성 증가: 서브클래싱을 통해 여러 메서드를 정의하고 재사용할 수 있어 코드 유지보수가 용이함.
 # 2. 유연성: 복잡한 모델 구조를 구현할 때, 인코더와 디코더 부분을 독립적으로 관리하고 skip connection 등을 쉽게 추가할 수 있음.
 # 3. 명확한 구조: 모델의 각 부분을 메서드로 나누어 관리하므로, 구조가 명확해지고 가독성이 향상됨.
+
+
+
+
+
+# PS C:\Users\AERO\Downloads\Chest-X-Ray-Kaggle-main\Chest-X-Ray-Kaggle-main>  c:; cd 'c:\Users\AERO\Downloads\Chest-X-Ray-Kaggle-main\Chest-X-Ray-Kaggle-main'; & 'c:\Python312\python.exe' 'c:\Users\AERO\.vscode\extensions\ms-python.debugpy-2024.12.0-win32-x64\bundled\libs\debugpy\adapter/../..\debugpy\launcher' '52863' '--' 'c:\Users\AERO\Downloads\Chest-X-Ray-Kaggle-main\Chest-X-Ray-Kaggle-main\ee111.py'
+# 2024-11-24 17:57:58.119951: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+# 2024-11-24 17:58:00.939388: I tensorflow/core/util/port.cc:153] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+# WARNING:tensorflow:From c:\Python312\Lib\site-packages\keras\src\backend\tensorflow\core.py:204: The name tf.placeholder is deprecated. Please use tf.compat.v1.placeholder instead.
+
+# 2024-11-24 17:58:07.604436: I tensorflow/core/platform/cpu_feature_guard.cc:210] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+# To enable the following instructions: AVX2 AVX512F AVX512_VNNI FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+# Model: "functional"
+# ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━┓
+# ┃ Layer (type)                         ┃ Output Shape                ┃         Param # ┃
+# ┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━┩
+# │ input_layer (InputLayer)             │ (None, 128, 128, 1)         │               0 │
+# ├──────────────────────────────────────┼─────────────────────────────┼─────────────────┤
+# │ u_net (UNet)                         │ (None, 128, 128, 1)         │      18,457,985 │
+# └──────────────────────────────────────┴─────────────────────────────┴─────────────────┘
+#  Total params: 18,457,985 (70.41 MB)
+#  Trainable params: 18,457,985 (70.41 MB)
+#  Non-trainable params: 0 (0.00 B)
+# PS C:\Users\AERO\Downloads\Chest-X-Ray-Kaggle-main\Chest-X-Ray-Kaggle-main> 
