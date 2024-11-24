@@ -18,7 +18,7 @@
 ## 데이터 전처리 및 증강
 
 모델 학습을 위해 이미지를 224x224 또는 192x192 크기로 조정하고 다양한 증강 기법을 적용했습니다. 이를 통해 모델이 다양한 패턴을 학습하고, 데이터가 부족한 의료 데이터셋에서 과적합을 방지할 수 있도록 합니다.
-![폐렴 진단 예시 이미지](C:\Users\AERO\Downloads\Chest-X-Ray-Kaggle-main\Chest-X-Ray-Kaggle-main\img\Figure_1.png)
+![폐렴 진단 예시 이미지](img/Figure_1.png)
 
 ### 이미지 전처리 및 증강 설정
 
