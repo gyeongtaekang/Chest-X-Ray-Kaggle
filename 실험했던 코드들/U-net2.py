@@ -197,3 +197,64 @@ if __name__ == '__main__':
     train_model(model, train_loader, val_loader, criterion, optimizer, scheduler)
     model.load_state_dict(torch.load("best_model.pth"))
     test_model(model, test_loader)
+
+
+# Epoch 1/50: 100%|████████████████████████████████████████████████████████████████████| 326/326 [02:14<00:00,  2.42it/s]
+# Epoch 1: Train Accuracy: 0.8698, Precision: 0.9875, Recall: 0.8354, F1 Score: 0.9051
+# Validation Loss: 0.0777, Accuracy: 0.9375, Precision: 1.0000, Recall: 0.8750, F1 Score: 0.9333
+# Epoch 2/50: 100%|████████████████████████████████████████████████████████████████████| 326/326 [01:43<00:00,  3.16it/s]
+# Epoch 2: Train Accuracy: 0.9112, Precision: 0.9905, Recall: 0.8890, F1 Score: 0.9370
+# Validation Loss: 0.0992, Accuracy: 0.8750, Precision: 0.8750, Recall: 0.8750, F1 Score: 0.8750
+# Epoch 3/50: 100%|████████████████████████████████████████████████████████████████████| 326/326 [01:44<00:00,  3.11it/s] 
+# Epoch 3: Train Accuracy: 0.9252, Precision: 0.9938, Recall: 0.9050, F1 Score: 0.9473
+# Validation Loss: 0.0645, Accuracy: 0.9375, Precision: 1.0000, Recall: 0.8750, F1 Score: 0.9333
+# Epoch 4/50: 100%|████████████████████████████████████████████████████████████████████| 326/326 [01:45<00:00,  3.10it/s]
+# Epoch 4: Train Accuracy: 0.9396, Precision: 0.9958, Recall: 0.9226, F1 Score: 0.9578
+# Validation Loss: 0.0595, Accuracy: 0.8125, Precision: 1.0000, Recall: 0.6250, F1 Score: 0.7692
+# Epoch 5/50: 100%|████████████████████████████████████████████████████████████████████| 326/326 [01:45<00:00,  3.10it/s]
+# Epoch 5: Train Accuracy: 0.9291, Precision: 0.9932, Recall: 0.9107, F1 Score: 0.9502
+# Validation Loss: 0.0858, Accuracy: 0.9375, Precision: 0.8889, Recall: 1.0000, F1 Score: 0.9412
+# Epoch 6/50: 100%|████████████████████████████████████████████████████████████████████| 326/326 [01:45<00:00,  3.08it/s] 
+# Epoch 6: Train Accuracy: 0.9406, Precision: 0.9942, Recall: 0.9254, F1 Score: 0.9586
+# Validation Loss: 0.0665, Accuracy: 1.0000, Precision: 1.0000, Recall: 1.0000, F1 Score: 1.0000
+# Epoch 7/50: 100%|████████████████████████████████████████████████████████████████████| 326/326 [01:46<00:00,  3.07it/s] 
+# Epoch 7: Train Accuracy: 0.9599, Precision: 0.9973, Recall: 0.9486, F1 Score: 0.9724
+# Validation Loss: 0.0868, Accuracy: 1.0000, Precision: 1.0000, Recall: 1.0000, F1 Score: 1.0000
+# Epoch 8/50: 100%|████████████████████████████████████████████████████████████████████| 326/326 [01:45<00:00,  3.08it/s] 
+# Epoch 8: Train Accuracy: 0.9534, Precision: 0.9954, Recall: 0.9417, F1 Score: 0.9678
+# Validation Loss: 0.2093, Accuracy: 0.7500, Precision: 0.6667, Recall: 1.0000, F1 Score: 0.8000
+# Epoch 9/50: 100%|████████████████████████████████████████████████████████████████████| 326/326 [01:45<00:00,  3.08it/s] 
+# Epoch 9: Train Accuracy: 0.9574, Precision: 0.9959, Recall: 0.9466, F1 Score: 0.9706
+# Validation Loss: 0.0373, Accuracy: 0.9375, Precision: 1.0000, Recall: 0.8750, F1 Score: 0.9333
+# Epoch 10/50: 100%|███████████████████████████████████████████████████████████████████| 326/326 [01:45<00:00,  3.08it/s]
+# Epoch 10: Train Accuracy: 0.9594, Precision: 0.9967, Recall: 0.9484, F1 Score: 0.9720
+# Validation Loss: 0.0158, Accuracy: 0.9375, Precision: 1.0000, Recall: 0.8750, F1 Score: 0.9333
+# Epoch 11/50: 100%|███████████████████████████████████████████████████████████████████| 326/326 [01:45<00:00,  3.08it/s]
+# Epoch 11: Train Accuracy: 0.9638, Precision: 0.9968, Recall: 0.9543, F1 Score: 0.9751
+# Validation Loss: 0.0283, Accuracy: 0.8750, Precision: 1.0000, Recall: 0.7500, F1 Score: 0.8571
+# Epoch 12/50: 100%|███████████████████████████████████████████████████████████████████| 326/326 [02:32<00:00,  2.13it/s] 
+# Epoch 12: Train Accuracy: 0.9657, Precision: 0.9970, Recall: 0.9566, F1 Score: 0.9764
+# Validation Loss: 0.0165, Accuracy: 1.0000, Precision: 1.0000, Recall: 1.0000, F1 Score: 1.0000
+# Epoch 13/50: 100%|███████████████████████████████████████████████████████████████████| 326/326 [01:52<00:00,  2.90it/s] 
+# Epoch 13: Train Accuracy: 0.9645, Precision: 0.9973, Recall: 0.9548, F1 Score: 0.9756
+# Validation Loss: 0.0522, Accuracy: 1.0000, Precision: 1.0000, Recall: 1.0000, F1 Score: 1.0000
+# Epoch 14/50: 100%|███████████████████████████████████████████████████████████████████| 326/326 [01:48<00:00,  3.00it/s] 
+# Epoch 14: Train Accuracy: 0.9676, Precision: 0.9973, Recall: 0.9590, F1 Score: 0.9778
+# Validation Loss: 0.0235, Accuracy: 0.8750, Precision: 1.0000, Recall: 0.7500, F1 Score: 0.8571
+# Epoch 15/50: 100%|███████████████████████████████████████████████████████████████████| 326/326 [01:54<00:00,  2.85it/s] 
+# Epoch 15: Train Accuracy: 0.9743, Precision: 0.9984, Recall: 0.9670, F1 Score: 0.9824
+# Validation Loss: 0.0310, Accuracy: 0.9375, Precision: 1.0000, Recall: 0.8750, F1 Score: 0.9333
+# Epoch 16/50: 100%|███████████████████████████████████████████████████████████████████| 326/326 [01:51<00:00,  2.93it/s] 
+# Epoch 16: Train Accuracy: 0.9745, Precision: 0.9984, Recall: 0.9672, F1 Score: 0.9826
+# Validation Loss: 0.1174, Accuracy: 0.9375, Precision: 0.8889, Recall: 1.0000, F1 Score: 0.9412
+# Epoch 17/50: 100%|███████████████████████████████████████████████████████████████████| 326/326 [01:52<00:00,  2.90it/s] 
+# Epoch 17: Train Accuracy: 0.9732, Precision: 0.9981, Recall: 0.9657, F1 Score: 0.9816
+# Validation Loss: 0.0229, Accuracy: 0.9375, Precision: 1.0000, Recall: 0.8750, F1 Score: 0.9333
+# Early stopping triggered
+# Test Accuracy: 0.9167
+# Test Precision: 0.9519
+# Test Recall: 0.9128
+# Test F1 Score: 0.9319
+# Confusion Matrix:
+# [[216  18]
+#  [ 34 356]]
