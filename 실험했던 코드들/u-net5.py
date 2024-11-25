@@ -28,7 +28,8 @@ test_dir = os.path.join(data_dir, 'test')
 def apply_clahe(image):
     gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    return clahe.apply(gray)
+    enhanced = clahe.apply(gray)
+    return enhanced
 
 # Laplacian Filtering과 Edge Detection
 def apply_laplacian_and_edge_detection(image):
@@ -54,37 +55,31 @@ def calculate_asymmetry(image):
     right = image[:, w // 2:]
     return abs(np.mean(left) - np.mean(right))
 
-# 전처리 과정
+# 커스텀 전처리 함수
 def custom_preprocessing(image):
     if isinstance(image, torch.Tensor):
-        image = np.array(image.permute(1, 2, 0).cpu())  # Tensor -> numpy
+        image = np.array(F.to_pil_image(image))  # 텐서를 PIL 이미지로 변환
+    else:
+        image = np.array(image)  # 이미 PIL 이미지인 경우 변환하지 않음
 
     enhanced = apply_clahe(image)
-    laplacian, edges = apply_laplacian_and_edge_detection(image)
-    texture_features = extract_texture_features(image)
-    asymmetry = calculate_asymmetry(image)
+    image = torch.from_numpy(enhanced).unsqueeze(0).float() / 255.0  # numpy 배열을 텐서로 변환하고 차원 추가 및 float 형식으로 변환
 
-    # 텐서로 변환
-    return torch.from_numpy(image).permute(2, 0, 1).float() / 255.0
+    # 1채널 이미지를 3채널로 변환
+    image = image.repeat(3, 1, 1)
+    return image
 
 # 데이터 전처리
 train_transform = transforms.Compose([
-    transforms.Resize((256, 256)),
-    transforms.RandomResizedCrop((224, 224)),
-    transforms.RandomRotation(40),
-    transforms.ColorJitter(brightness=0.4, contrast=0.4, saturation=0.4, hue=0.2),
-    transforms.RandomHorizontalFlip(),
-    transforms.RandomVerticalFlip(),
-    transforms.RandomApply([transforms.GaussianBlur(5)]),
-    transforms.RandomErasing(),
+    transforms.Resize((224, 224)),
     transforms.Lambda(lambda x: custom_preprocessing(x)),
-    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    transforms.Normalize([0.485], [0.229])  # 단일 채널에 대한 정규화
 ])
 
 val_test_transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.Lambda(lambda x: custom_preprocessing(x)),
-    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    transforms.Normalize([0.485], [0.229])  # 단일 채널에 대한 정규화
 ])
 
 # 데이터셋 및 로더
@@ -92,9 +87,9 @@ train_dataset = ImageFolder(root=train_dir, transform=train_transform)
 val_dataset = ImageFolder(root=val_dir, transform=val_test_transform)
 test_dataset = ImageFolder(root=test_dir, transform=val_test_transform)
 
-train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=4)
-val_loader = DataLoader(val_dataset, batch_size=16, shuffle=False, num_workers=4)
-test_loader = DataLoader(test_dataset, batch_size=16, shuffle=False, num_workers=4)
+train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=0, pin_memory=True)
+val_loader = DataLoader(val_dataset, batch_size=16, shuffle=False, num_workers=0, pin_memory=True)
+test_loader = DataLoader(test_dataset, batch_size=16, shuffle=False, num_workers=0, pin_memory=True)
 
 # U-Net 모델 정의
 class LungSegmentationModel(nn.Module):
@@ -171,6 +166,7 @@ def train_model(lung_model, pneumonia_model, train_loader, val_loader, criterion
         scheduler.step()
         train_acc = accuracy_score(all_labels, all_preds)
         print(f"Epoch {epoch+1}/{epochs}, Loss: {train_loss:.4f}, Accuracy: {train_acc:.4f}")
+        torch.cuda.empty_cache()
 
 # 테스트 함수
 def test_model(lung_model, pneumonia_model, test_loader):
